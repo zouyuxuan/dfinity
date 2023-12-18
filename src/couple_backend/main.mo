@@ -18,7 +18,7 @@ actor {
         return false;
       };
       case (null) {
-        let m = HashMap.HashMap<(Text, Text), [Type.Message]>(
+        let m = HashMap.HashMap<(Text, Text), [ Type.Message]>(
           0,
           func(to : (Text, Text), from : (Text, Text)) {
             Text.equal(to.0, from.0) and Text.equal(to.1, from.1)
@@ -35,21 +35,17 @@ actor {
             create_time = Time.now();
             var state = "";
             is_single = true;
-            var follower = [""];
-            var followering = [""];
-            var collections = [""];
+            var follower = [];
+            var followering = [];
+            var collections = [];
             var couple = "";
             var shared_message = {
               shared_time = 0;
               content = "";
               target = "";
-              comment = [{
-                send_time = 0;
-                content = "";
-                sender = "";
-              }];
+              comment = [];
             };
-            message = m;
+           var  message = m;
           },
         );
 
@@ -98,9 +94,7 @@ actor {
   public shared(msg)func  follow_user(user_name :Text):async Bool{
     switch(UserPool.get(msg.caller)){
       case(?user){
-        let  follower = Array.make<Text>("");
-        // var m = Array.append<Text>(follower,Array.make<Text>(user_name));
-        user.follower := Array.append<Text>(follower,Array.make<Text>(user_name));
+        user.follower := Array.append<Text>(user.follower,Array.make<Text>(user_name));
         UserPool.put(
           msg.caller,user);
           return true
@@ -115,9 +109,34 @@ actor {
       } ;
       case _ null;
     }
-  }
+  };
+  public shared({caller}) func send_message(to:Text,message:Type.Message):async Bool{
+    switch(UserPool.get(caller)){
+      case (?user){
+        switch(user.message.get((user.user_name,to))){
+          case(?messages){
+            user.message.put((user.user_name,to),Array.append<Type.Message>(messages,Array.make<Type.Message>(message)));
+          };
+          case null {
+            user.message.put((user.user_name,to),Array.make<Type.Message>( message));
+          };
+        };
+        UserPool.put(caller,user);
+        true
+      };
+      case null false
+  };
+  };
+  public shared(msg) func get_messages(to:Text ):async ?[ Type.Message]{
+    switch(UserPool.get(msg.caller)){
+      case (?user){
+        Debug.print("get message from to =  "#to);
+        user.message.get((user.user_name,to));
+      };
+    case null null;
+  };
 };
-
+}
 
 
 /*

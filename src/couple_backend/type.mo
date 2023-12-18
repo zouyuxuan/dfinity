@@ -33,6 +33,6 @@ module {
         var collections : [Text];
         var shared_message : SharedMessage;
         var couple:Text;
-        message:Map.HashMap<(Text,Text),[Message]>;
+        var message:Map.HashMap<(Text,Text),[ Message]>;
     };
 };
