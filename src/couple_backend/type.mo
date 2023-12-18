@@ -28,7 +28,7 @@ module {
         is_single : Bool;
         description : Text;
         var state : Text;
-        var follower : List.List<Text>;
+        var  follower : [Text];
         var followering : [Text];
         var collections : [Text];
         var shared_message : SharedMessage;

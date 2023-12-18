@@ -35,7 +35,7 @@ actor {
             create_time = Time.now();
             var state = "";
             is_single = true;
-            var follower = List.nil<Text>();
+            var follower = [""];
             var followering = [""];
             var collections = [""];
             var couple = "";
@@ -98,8 +98,9 @@ actor {
   public shared(msg)func  follow_user(user_name :Text):async Bool{
     switch(UserPool.get(msg.caller)){
       case(?user){
-        let  follower = List.push(user_name,user.follower);
-        user.follower := follower;
+        let  follower = Array.make<Text>("");
+        // var m = Array.append<Text>(follower,Array.make<Text>(user_name));
+        user.follower := Array.append<Text>(follower,Array.make<Text>(user_name));
         UserPool.put(
           msg.caller,user);
           return true
@@ -107,6 +108,14 @@ actor {
       case _ false;
     };
   };
+  public shared(msg)  func get_follow_user():async?[Text]{
+    switch(UserPool.get(msg.caller)){
+      case (?user){
+        ?user.follower
+      } ;
+      case _ null;
+    }
+  }
 };
 
 
