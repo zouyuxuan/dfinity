@@ -1,13 +1,12 @@
 import Text "mo:base/Text";
 import Int32 "mo:base/Int32";
 import Map "mo:base/HashMap";
-import Bool "mo:base/Bool";
-import List "mo:base/List";
 import Array "mo:base/Array";
 
 module {
    
     public type Message ={
+        id :Int32;
         send_time :Int;
         content:Text;
         sender:Text;
@@ -15,24 +14,23 @@ module {
      public type SharedMessage = {
         shared_time : Int;
         content : Text;
-        target : Text;
-        comment:[Message];
+        vedio_url :Text;
+        var comment: [Message];
     };
-    public type OptionState ={
-        #Ok:Text;
-        #Err:Text;
+    public type OptionError ={
+        #NotExistsErr:Text;
     };
     public type User = {
         create_time : Int;
         user_name : Text;
-        is_single : Bool;
         description : Text;
+        var shaerd_message_number : Nat;
         var state : Text;
         var  follower : [Text];
         var followering : [Text];
         var collections : [Text];
-        var shared_message : SharedMessage;
+        var shared_message : Map.HashMap<Nat,SharedMessage>;
         var couple:Text;
-        var message:Map.HashMap<(Text,Text),[ Message]>;
+        var message:Map.HashMap<(Text,Text),[Message]>;
     };
 };
