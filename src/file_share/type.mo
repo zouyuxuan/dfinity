@@ -2,6 +2,7 @@ import Text "mo:base/Text";
 import Int32 "mo:base/Int32";
 import Map "mo:base/HashMap";
 import Array "mo:base/Array";
+import Bool "mo:base/Bool";
 
 module {
    
@@ -12,6 +13,7 @@ module {
         sender:Text;
     };
      public type SharedMessage = {
+        var is_private:Bool;
         shared_time : Int;
         content : Text;
         video_cid :Text;
@@ -19,6 +21,7 @@ module {
         var comment: [Message];
     };
     public type OptionError ={
+        #PrivateErr:Text;
         #NotExistsErr:Text;
     };
     public type User = {

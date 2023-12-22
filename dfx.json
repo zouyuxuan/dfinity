@@ -1,15 +1,15 @@
 {
   "canisters": {
-    "couple_backend": {
-      "main": "src/couple_backend/main.mo",
+    "file_share": {
+      "main": "src/file_share/main.mo",
       "type": "motoko"
     },
-    "couple_frontend": {
+    "file_share_front": {
       "dependencies": [
-        "couple_backend"
+        "file_share"
       ],
       "source": [
-        "src/couple_frontend/assets"
+        "src/file_share_front/assets"
       ],
       "type": "assets"
     }

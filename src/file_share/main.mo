@@ -10,6 +10,7 @@ import Hash "mo:base/Hash";
 import Result "mo:base/Result";
 import Int32 "mo:base/Int32";
 import Nat "mo:base/Nat";
+import Blob "mo:base/Blob";
 actor {
   var users = HashMap.HashMap<Text, Principal>(0, Text.equal, Text.hash);
   var user_pool = HashMap.HashMap<Principal, Type.User>(0, Principal.equal, Principal.hash);
@@ -90,7 +91,7 @@ actor {
       case _ false;
     };
   };
-  public shared (msg) func get_follow_user() : async ?[Text] {
+  public shared (msg) func get_follow_user(user_name : Text) : async ?[Text] {
     switch (user_pool.get(msg.caller)) {
       case (?user) {
         ?user.follower;
@@ -98,7 +99,14 @@ actor {
       case _ null;
     };
   };
+  public func get_follow_number(user_name : Text) : async Nat {
+    0;
+  };
   public shared ({ caller }) func send_message(to : Text, message : Type.Message) : async Bool {
+    switch (users.get(to)) {
+      case (?recv) {};
+      case null { Debug.print("user" # to # " not created "); return false };
+    };
     switch (user_pool.get(caller)) {
 
       case (?user) {
@@ -142,7 +150,7 @@ actor {
     #ok;
   };
 
-  public shared (msg) func share_message(content : Text, video_cid : Text, image_cid : Text) : async ?Nat {
+  public shared (msg) func share_message(content : Text, video_cid : Text, image_cid : Text, is_private : Bool) : async ?Nat {
     var id : Nat = 0;
     switch (user_pool.get(msg.caller)) {
       case (?user) {
@@ -150,6 +158,7 @@ actor {
         id := user.shaerd_message_number;
         let message : Type.SharedMessage = {
           content = content;
+          var is_private = is_private;
           video_cid = video_cid;
           image_cid = image_cid;
           shared_time = Time.now();
@@ -162,23 +171,51 @@ actor {
     };
     ?id;
   };
-  public func get_shared_message_by_id(user_name : Text, message_id : Nat) : async ?(Text, Text, Text) {
+
+  public shared (msg) func set_shared_message_state(message_id : Nat, state : Bool) : async Bool {
+    switch (user_pool.get(msg.caller)) {
+      case (?user) {
+        switch (user.shared_message.get(message_id)) {
+          case (?message) {
+            message.is_private := state;
+            user.shared_message.put(message_id, message);
+            user_pool.put(msg.caller, user);
+          };
+          case null {
+            Debug.print("message id not exists any message ");
+            return false;
+          };
+        };
+      };
+      case null return false;
+    };
+    true;
+  };
+  public shared (msg) func get_shared_message_by_id(user_name : Text, message_id : Nat) : async ?(Text, Text, Text) {
     switch (users.get(user_name)) {
       case (?id) {
         switch (user_pool.get(id)) {
           case (?user) {
             switch (user.shared_message.get(message_id)) {
               case (?message) {
-                ?(message.content, message.video_cid, message.image_cid);
+                if (id == msg.caller) {
+                  return ?(message.content, message.video_cid, message.image_cid);
+                } else {
+                  Debug.print("message id " # Nat.toText(message_id) # "is private");
+                  null;
+                };
               };
-              case null {Debug.print("message id not exists any message ");return null};
+              case null {
+                Debug.print("message id not exists any message ");
+                return null;
+              };
             };
           };
           case _ null;
         };
       };
-      
-      case null {Debug.print("user not exists");return null} 
+
+      case null { Debug.print("user not exists"); return null }
 
     };
 
@@ -192,25 +229,35 @@ actor {
       case _ 0;
     };
   };
-  public shared (msg) func comment(message_id : Nat, content : Type.Message) : async Result.Result<?Type.Replay, Type.OptionError> {
-    switch (user_pool.get(msg.caller)) {
-      case (?user) {
-        switch (user.shared_message.get(message_id)) {
-          case (?c) {
-            c.comment := Array.append(c.comment, Array.make(content));
-            user.shared_message.put(message_id, c);
-            var replay : Type.Replay = {
-              shared_message_id = message_id;
-              comment_id = content.id;
+  public shared (msg) func comment(commenter : Text, message_id : Nat, content : Type.Message) : async Result.Result<?Type.Replay, Type.OptionError> {
+    switch (users.get(commenter)) {
+      case (?m) {
+        switch (user_pool.get(msg.caller)) {
+          case (?user) {
+            switch (user.shared_message.get(message_id)) {
+              case (?c) {
+                if (c.is_private and m != msg.caller) {
+                  return #err(#PrivateErr("message is private "));
+                } else {
+                  c.comment := Array.append(c.comment, Array.make(content));
+                  user.shared_message.put(message_id, c);
+                  var replay : Type.Replay = {
+                    shared_message_id = message_id;
+                    comment_id = content.id;
+                  };
+                  return #ok(?replay);
+                };
+              };
+              case null return #err(#NotExistsErr("message not exists "));
             };
-            return #ok(?replay);
-          };
-          case null return #err(#NotExistsErr("message not exists "));
-        };
 
+          };
+          case _ return #err(#NotExistsErr("message not exists"));
+        };
       };
-      case _ return #err(#NotExistsErr("message not exists"));
+      case null return #err(#NotExistsErr("user not exists"));
     };
+
     #ok(null);
   };
 
@@ -227,4 +274,5 @@ actor {
       case null null;
     };
   };
+
 };
