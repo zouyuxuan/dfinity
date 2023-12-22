@@ -11,7 +11,7 @@ import Result "mo:base/Result";
 import Int32 "mo:base/Int32";
 import Nat "mo:base/Nat";
 actor {
-  stable var users : [Text] = [];
+  var users = HashMap.HashMap<Text, Principal>(0, Text.equal, Text.hash);
   var user_pool = HashMap.HashMap<Principal, Type.User>(0, Principal.equal, Principal.hash);
   public shared (msg) func create_user(user_name : Text, description : Text) : async Bool {
     switch (user_pool.get(msg.caller)) {
@@ -29,7 +29,7 @@ actor {
             Text.hash(Text.concat(k.0, k.1));
           },
         );
-        users := Array.append(users, Array.make(user_name));
+        users.put(user_name, msg.caller);
         user_pool.put(
           msg.caller,
           {
@@ -37,11 +37,9 @@ actor {
             description = description;
             create_time = Time.now();
             var shaerd_message_number = 0;
-            var state = "";
             var follower = [];
             var followering = [];
             var collections = [];
-            var couple = "";
             var shared_message = HashMap.HashMap<Nat, Type.SharedMessage>(0, Nat.equal, Hash.hash);
             var message = m;
           },
@@ -66,32 +64,22 @@ actor {
       };
     };
   };
-  public shared (msg) func set_status(state : Text) : async Bool {
-    switch (user_pool.get(msg.caller)) {
-      case (?user) {
-        user.state := state;
-        user_pool.put(
-          msg.caller,
-          user,
-        );
-      };
-      case null {
+  public shared (msg) func follow_user(user_name : Text) : async Bool {
+    label check for (u in users.keys()) {
+      if (u == user_name) {
+        break check;
+      } else {
+        Debug.print("user name not exists ,follow failed");
         return false;
       };
+
     };
-    true;
-  };
-  public shared (msg) func get_state() : async Text {
     switch (user_pool.get(msg.caller)) {
       case (?user) {
-        user.state;
-      };
-      case null "";
-    };
-  };
-  public shared (msg) func follow_user(user_name : Text) : async Bool {
-    switch (user_pool.get(msg.caller)) {
-      case (?user) {
+        if (user.user_name == user_name) {
+          Debug.print("Can't follow yourself");
+          return false;
+        };
         user.follower := Array.append<Text>(user.follower, Array.make<Text>(user_name));
         user_pool.put(
           msg.caller,
@@ -154,15 +142,16 @@ actor {
     #ok;
   };
 
-  public shared (msg) func share_message(content:Text,vedio_url:Text) : async ?Nat {
-    var id:Nat = 0;
+  public shared (msg) func share_message(content : Text, video_cid : Text, image_cid : Text) : async ?Nat {
+    var id : Nat = 0;
     switch (user_pool.get(msg.caller)) {
       case (?user) {
         user.shaerd_message_number += 1;
-        id :=user.shaerd_message_number;
-        let message:Type.SharedMessage={
+        id := user.shaerd_message_number;
+        let message : Type.SharedMessage = {
           content = content;
-          vedio_url = vedio_url;
+          video_cid = video_cid;
+          image_cid = image_cid;
           shared_time = Time.now();
           var comment = [];
         };
@@ -171,29 +160,50 @@ actor {
       };
       case null return null;
     };
-    ?id ;
+    ?id;
   };
-  public shared (msg) func get_shared_message(message_id : Nat) : async ?(Text,Text){
-    switch (user_pool.get(msg.caller)) {
-      case (?user) {
-        switch(user.shared_message.get(message_id)){
-          case(?message){
-             ?(message.content,message.vedio_url);
+  public func get_shared_message_by_id(user_name : Text, message_id : Nat) : async ?(Text, Text, Text) {
+    switch (users.get(user_name)) {
+      case (?id) {
+        switch (user_pool.get(id)) {
+          case (?user) {
+            switch (user.shared_message.get(message_id)) {
+              case (?message) {
+                ?(message.content, message.video_cid, message.image_cid);
+              };
+              case null {Debug.print("message id not exists any message ");return null};
+            };
           };
-          case null null;
+          case _ null;
         };
       };
-      case _ null;
+      
+      case null {Debug.print("user not exists");return null} 
+
+    };
+
+  };
+
+  public shared (msg) func get_shared_message_number() : async Nat {
+    switch (user_pool.get(msg.caller)) {
+      case (?user) {
+        user.shared_message.size();
+      };
+      case _ 0;
     };
   };
-  public shared (msg) func comment(message_id : Nat, content : Type.Message) : async Result.Result<(), Type.OptionError> {
+  public shared (msg) func comment(message_id : Nat, content : Type.Message) : async Result.Result<?Type.Replay, Type.OptionError> {
     switch (user_pool.get(msg.caller)) {
       case (?user) {
         switch (user.shared_message.get(message_id)) {
           case (?c) {
-            c.comment := Array.append(c.comment,Array.make(content));
+            c.comment := Array.append(c.comment, Array.make(content));
             user.shared_message.put(message_id, c);
-            return #ok;
+            var replay : Type.Replay = {
+              shared_message_id = message_id;
+              comment_id = content.id;
+            };
+            return #ok(?replay);
           };
           case null return #err(#NotExistsErr("message not exists "));
         };
@@ -201,20 +211,20 @@ actor {
       };
       case _ return #err(#NotExistsErr("message not exists"));
     };
-    #ok;
+    #ok(null);
   };
 
-  public shared(msg) func get_comment(message_id:Nat):async ?[Type.Message]{
+  public shared (msg) func get_comment(message_id : Nat) : async ?[Type.Message] {
     switch (user_pool.get(msg.caller)) {
       case (?user) {
         switch (user.shared_message.get(message_id)) {
-          case(?message){
+          case (?message) {
             ?message.comment;
           };
           case null null;
         };
       };
-      case null null
-     };
-  }
+      case null null;
+    };
+  };
 };

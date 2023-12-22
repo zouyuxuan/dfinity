@@ -14,7 +14,8 @@ module {
      public type SharedMessage = {
         shared_time : Int;
         content : Text;
-        vedio_url :Text;
+        video_cid :Text;
+        image_cid :Text;
         var comment: [Message];
     };
     public type OptionError ={
@@ -25,12 +26,14 @@ module {
         user_name : Text;
         description : Text;
         var shaerd_message_number : Nat;
-        var state : Text;
         var  follower : [Text];
         var followering : [Text];
-        var collections : [Text];
+        var collections : [(Text,Nat)];
         var shared_message : Map.HashMap<Nat,SharedMessage>;
-        var couple:Text;
         var message:Map.HashMap<(Text,Text),[Message]>;
+    };
+    public type Replay = {
+        shared_message_id :Nat;
+        comment_id :Int32;
     };
 };
