@@ -229,6 +229,27 @@ actor {
       case _ 0;
     };
   };
+
+  public shared(msg) func delete_shared_message(message_id:Nat):async Bool{
+    switch (user_pool.get(msg.caller)) {
+      case (?user) {
+        user.shared_message.delete(message_id);
+        return true
+      };
+      case _ return false;
+    };
+    true
+  };
+  public shared(msg) func delete_all_shared_message():async Bool{
+    switch (user_pool.get(msg.caller)) {
+      case (?user) {
+        user.shared_message := HashMap.HashMap<Nat,Type.SharedMessage>(0,Nat.equal,Hash.hash);
+        return true
+      };
+      case _ return false;
+    };
+    true
+  };
   public shared (msg) func comment(commenter : Text, message_id : Nat, content : Type.Message) : async Result.Result<?Type.Replay, Type.OptionError> {
     switch (users.get(commenter)) {
       case (?m) {

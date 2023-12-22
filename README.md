@@ -17,7 +17,7 @@
 dfx start --clean --background  
 dfx deploy 
 #创建用户
-dfx canister file_share call create_user '{"zyx",""}'
+dfx canister  call file_share  create_user '("zyx","")'
 # 发送消息
 dfx canister call file_share send_message '("tll",record{send_time = 123; content = "test send message"; sender = "zyx";id=1 })'
 # 查看跟tll的消息记录
@@ -25,8 +25,12 @@ dfx canister call file_share  get_messages '("tll")'
 # 删除跟tll的消息记录
 dfx canister call file_share  delete_message_with_user  '("tll")'
 # 发布分享
-dfx canister call file_share share_message '(record{shared_time=123;content="share message";vedio_cid="www.baidu.com";image _cid="";is_private=false})'
+dfx canister call file_share share_message '("share message","www.baidu.com","",false)'
+# 获取分享
+dfx canister call file_share get_shared_message_by_id '("zyx",1)'
 # 删除分享
-dfx canister call file_share delete_message '(1)'
+dfx canister call file_share delete_shared_message '(1)'
+# 删除所有分享
+dfx canister call file_share delete_all_shared_message 
 
 ```
