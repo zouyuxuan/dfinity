@@ -39,6 +39,8 @@ actor {
             create_time = Time.now();
             var shaerd_message_number = 0;
             var follower = [];
+            var liked_total = 0;
+            var like_list = [];
             var followering = [];
             var collections = [];
             var shared_message = HashMap.HashMap<Nat, Type.SharedMessage>(0, Nat.equal, Hash.hash);
@@ -162,6 +164,7 @@ actor {
           video_cid = video_cid;
           image_cid = image_cid;
           shared_time = Time.now();
+          var liked = 0;
           var comment = [];
         };
         user.shared_message.put(user.shaerd_message_number, message);
@@ -191,7 +194,7 @@ actor {
     };
     true;
   };
-  public shared (msg) func get_shared_message_by_id(user_name : Text, message_id : Nat) : async ?(Text, Text, Text) {
+  public shared (msg) func get_shared_message_by_id(user_name : Text, message_id : Nat) : async ?(Text, Text, Text, Int32) {
     switch (users.get(user_name)) {
       case (?id) {
         switch (user_pool.get(id)) {
@@ -199,7 +202,7 @@ actor {
             switch (user.shared_message.get(message_id)) {
               case (?message) {
                 if (id == msg.caller) {
-                  return ?(message.content, message.video_cid, message.image_cid);
+                  return ?(message.content, message.video_cid, message.image_cid, message.liked);
                 } else {
                   Debug.print("message id " # Nat.toText(message_id) # "is private");
                   null;
@@ -221,6 +224,52 @@ actor {
 
   };
 
+  public shared (msg) func like_shared_message(user_name : Text, message_id : Nat) : async Bool {
+    let user_principal = await get_user_principal(user_name);
+    switch (user_principal) {
+      case null return false;
+      case (?p) {
+        switch (user_pool.get(p)) {
+          case (?u) {
+            switch (u.shared_message.get(message_id)) {
+              case (?n) {
+                // 判断caller 是否存在
+                switch (user_pool.get(msg.caller)) {
+                  case (?caller) {
+                    // 是否已喜欢
+                    let index = Array.indexOf<(Text, Nat)>((user_name, message_id), caller.like_list, func(to : ((Text, Nat), (Text, Nat))) { return to.0.0 == to.1.0 and to.0.1 == to.1.1 });
+                    switch (index) {
+                      case (?exists) {Debug.print("caller has liked this message ");return false};
+                      case null {
+                        caller.like_list := Array.append(caller.like_list, Array.make((user_name, message_id)));
+                        user_pool.put(msg.caller, caller);
+                        return true
+                      };
+                      
+                    };
+                  };
+                  case null return false;
+                };
+                u.liked_total += 1;
+                n.liked += 1;
+                u.shared_message.put(message_id, n);
+                user_pool.put(p, u);
+                return true;
+              };
+              case null { Debug.print("message id not exists"); return false };
+            };
+
+          };
+          case null {
+            Debug.print("user_name = " #user_name # "not exists");
+            return false;
+          };
+        };
+      };
+    };
+
+    return true;
+  };
   public shared (msg) func get_shared_message_number() : async Nat {
     switch (user_pool.get(msg.caller)) {
       case (?user) {
@@ -230,26 +279,28 @@ actor {
     };
   };
 
-  public shared(msg) func delete_shared_message(message_id:Nat):async Bool{
+  public shared (msg) func delete_shared_message(message_id : Nat) : async Bool {
     switch (user_pool.get(msg.caller)) {
       case (?user) {
         user.shared_message.delete(message_id);
-        return true
+        return true;
       };
       case _ return false;
     };
-    true
+    true;
   };
-  public shared(msg) func delete_all_shared_message():async Bool{
+  public shared (msg) func delete_all_shared_message() : async Bool {
     switch (user_pool.get(msg.caller)) {
       case (?user) {
-        user.shared_message := HashMap.HashMap<Nat,Type.SharedMessage>(0,Nat.equal,Hash.hash);
-        return true
+        user.shaerd_message_number := 0;
+        user.shared_message := HashMap.HashMap<Nat, Type.SharedMessage>(0, Nat.equal, Hash.hash);
+        return true;
       };
       case _ return false;
     };
-    true
+    true;
   };
+
   public shared (msg) func comment(commenter : Text, message_id : Nat, content : Type.Message) : async Result.Result<?Type.Replay, Type.OptionError> {
     switch (users.get(commenter)) {
       case (?m) {
@@ -295,5 +346,10 @@ actor {
       case null null;
     };
   };
-
+  private func get_user_principal(user_name : Text) : async ?Principal {
+    switch (users.get(user_name)) {
+      case (?user) ?user;
+      case null null;
+    };
+  };
 };
