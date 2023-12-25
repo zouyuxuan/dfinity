@@ -28,6 +28,18 @@ dfx canister call file_share  delete_message_with_user  '("tll")'
 dfx canister call file_share share_message '("share message","www.baidu.com","",false)'
 # 获取分享
 dfx canister call file_share get_shared_message_by_id '("zyx",1)'
+# 设置分享状态私密
+dfx canister call file_share set_shared_message_state '(1,true)'
+# 点赞状态
+dfx canister call file_share like_shared_message '("zyx",1)'
+# 查看获赞数量
+dfx canister call file_share get_like_number 
+# 查看点赞列表
+dfx canister call file_share get_like_list
+# 评论分享
+dfx canister call file_share comment '("zyx",1,record{id=1;send_time=123;content="comment";sender="tll"})'
+# 查看评论
+dfx canister call file_share get_comment '(1)' 
 # 删除分享
 dfx canister call file_share delete_shared_message '(1)'
 # 删除所有分享

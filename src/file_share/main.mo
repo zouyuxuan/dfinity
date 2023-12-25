@@ -202,7 +202,7 @@ actor {
           case (?user) {
             switch (user.shared_message.get(message_id)) {
               case (?message) {
-                if (id == msg.caller) {
+                if (id == msg.caller or message.is_private == false) {
                   return ?(message.content, message.video_cid, message.image_cid, message.liked);
                 } else {
                   Debug.print("message id " # Nat.toText(message_id) # "is private");
