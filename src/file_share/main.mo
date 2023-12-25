@@ -11,6 +11,7 @@ import Result "mo:base/Result";
 import Int32 "mo:base/Int32";
 import Nat "mo:base/Nat";
 import Blob "mo:base/Blob";
+import Nat32 "mo:base/Nat32";
 actor {
   var users = HashMap.HashMap<Text, Principal>(0, Text.equal, Text.hash);
   var user_pool = HashMap.HashMap<Principal, Type.User>(0, Principal.equal, Principal.hash);
@@ -239,13 +240,15 @@ actor {
                     // 是否已喜欢
                     let index = Array.indexOf<(Text, Nat)>((user_name, message_id), caller.like_list, func(to : ((Text, Nat), (Text, Nat))) { return to.0.0 == to.1.0 and to.0.1 == to.1.1 });
                     switch (index) {
-                      case (?exists) {Debug.print("caller has liked this message ");return false};
+                      case (?exists) {
+                        Debug.print("caller has liked this message ");
+                        return false;
+                      };
                       case null {
                         caller.like_list := Array.append(caller.like_list, Array.make((user_name, message_id)));
                         user_pool.put(msg.caller, caller);
-                        return true
                       };
-                      
+
                     };
                   };
                   case null return false;
@@ -269,6 +272,25 @@ actor {
     };
 
     return true;
+  };
+
+  public shared(msg) func get_like_number():async Nat32{
+    switch (user_pool.get(msg.caller)) {
+      case (?user) {
+        return user.liked_total
+      };
+      case null return 0;
+    };
+     return 0
+  };
+  public shared (msg) func get_like_list() : async ?[(Text, Nat)] {
+    switch (user_pool.get(msg.caller)) {
+      case (?user) {
+        return ?user.like_list
+      };
+      case null return null;
+    };
+     return null;
   };
   public shared (msg) func get_shared_message_number() : async Nat {
     switch (user_pool.get(msg.caller)) {
