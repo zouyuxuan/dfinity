@@ -311,7 +311,12 @@ actor {
 
     return true;
   };
-
+  public shared(msg) func collect_shared_message(user_name:Text,message_id:Nat):async Bool{
+    true
+  };
+  public shared(msg) func cancel_collect_shared_message(user_name:Text,message_id:Nat):async Bool{
+    true
+  };
   public shared(msg) func get_like_number():async Nat32{
     switch (user_pool.get(msg.caller)) {
       case (?user) {
