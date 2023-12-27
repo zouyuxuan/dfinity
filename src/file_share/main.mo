@@ -55,7 +55,35 @@ actor {
     true
 
   };
+  public shared(msg) func get_user_info():async ?Type.UserInfo{
+    switch (user_pool.get(msg.caller)) {
+      case (?user) {
+        // var share_messages = [Nat];
 
+        // for(share_message in user.shared_message.keys()){
+        //  share_messages :=  Array.append(share_messages,Array.make<Nat>(share_message))
+        // };
+        Debug.print("user name = " #user.user_name);
+        let user_info  : Type.UserInfo ={
+        create_time = user.create_time;
+        user_name = user.user_name;
+        description = user.description;
+        like_list = user.like_list;
+        liked_total=user.liked_total;
+        shaerd_message_number = user.shared_message.size();
+        follower = user.follower;
+        followering = user.followering;
+        collections = user.collections;
+        shared_message = [1]
+        };
+        ?user_info
+      };
+      case null {
+        Debug.print("user not exist ");
+        null
+      };
+    };
+  };
   public shared (msg) func get_user_name() : async Text {
     switch (user_pool.get(msg.caller)) {
       case (?user) {

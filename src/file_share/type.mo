@@ -27,7 +27,18 @@ module {
         #PrivateErr:Text;
         #NotExistsErr:Text;
     };
-    
+    public type UserInfo = {
+        create_time : Int;
+        user_name : Text;
+        description : Text;
+        like_list:[(Text,Nat)];
+        liked_total:Nat32;
+        shaerd_message_number : Nat;
+        follower : [Text];
+        followering : [Text];
+        collections : [(Text,Nat)];
+        shared_message : [Nat]
+    };
     public type User = {
         create_time : Int;
         user_name : Text;
