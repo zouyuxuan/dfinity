@@ -58,11 +58,10 @@ actor {
   public shared(msg) func get_user_info():async ?Type.UserInfo{
     switch (user_pool.get(msg.caller)) {
       case (?user) {
-        // var share_messages = [Nat];
-
-        // for(share_message in user.shared_message.keys()){
-        //  share_messages :=  Array.append(share_messages,Array.make<Nat>(share_message))
-        // };
+        var share_messages:[Nat] = [];
+        for(s in user.shared_message.keys()){
+         share_messages :=  Array.append(share_messages,Array.make<Nat>(s));
+        };
         Debug.print("user name = " #user.user_name);
         let user_info  : Type.UserInfo ={
         create_time = user.create_time;
@@ -74,7 +73,7 @@ actor {
         follower = user.follower;
         followering = user.followering;
         collections = user.collections;
-        shared_message = [1]
+        shared_message = share_messages;
         };
         ?user_info
       };
@@ -84,18 +83,7 @@ actor {
       };
     };
   };
-  public shared (msg) func get_user_name() : async Text {
-    switch (user_pool.get(msg.caller)) {
-      case (?user) {
-        Debug.print("user name = " #user.user_name);
-        user.user_name;
-      };
-      case null {
-        Debug.print("user not exist ");
-        "";
-      };
-    };
-  };
+
   public shared (msg) func follow_user(user_name : Text) : async Bool {
     label check for (u in users.keys()) {
       if (u == user_name) {
@@ -134,26 +122,48 @@ actor {
     0;
   };
   public shared ({ caller }) func send_message(to : Text, message : Type.Message) : async Bool {
+   var  p = "";
     switch (users.get(to)) {
-      case (?recv) {};
-      case null { Debug.print("user" # to # " not created "); return false };
-    };
-    switch (user_pool.get(caller)) {
+      case (?recv) {
+          p := Principal.toText(recv);
+        };
+        case null { Debug.print("user" # to # " not created "); return false }; 
+      };
+      
+    switch (user_pool.get(caller) ,user_pool.get(Principal.fromText(p))) {
 
-      case (?user) {
-        switch (user.message.get((user.user_name, to))) {
-          case (?messages) {
-            user.message.put((user.user_name, to), Array.append<Type.Message>(messages, Array.make<Type.Message>(message)));
+      case (?user,?receiver) {
+        switch (user.message.get((user.user_name, to)),receiver.message.get((to,user.user_name))) {
+          case (?messages_from,?message_to) {
+           receiver.message.put((to,user.user_name), Array.append<Type.Message>(message_to, Array.make<Type.Message>(message)));
+            user.message.put((user.user_name, to), Array.append<Type.Message>(messages_from, Array.make<Type.Message>(message)));
           };
-          case null {
+          case (null,null) {
+            receiver.message.put((to,user.user_name), Array.make<Type.Message>(message));
             user.message.put((user.user_name, to), Array.make<Type.Message>(message));
           };
+          case (_,_){};
         };
         user_pool.put(caller, user);
         true;
       };
-      case null false;
+      case (null,null)  false;
+      case(_,_) false;
     };
+  };
+
+  public shared(msg) func get_chat_list():async ?[Text]{
+    switch (user_pool.get(msg.caller)) {
+      case(?user){
+        var chat_list :[Text] = [];
+        for(chat in user.message.keys()){
+          chat_list := Array.append(chat_list,Array.make(chat.1))
+        };
+        return ?chat_list;
+      };
+      case null return null
+    };
+    null
   };
   public shared (msg) func get_messages(to : Text) : async ?[Type.Message] {
     switch (user_pool.get(msg.caller)) {
