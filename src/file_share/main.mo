@@ -202,8 +202,8 @@ actor {
     var id : Nat = 0;
     switch (user_pool.get(msg.caller)) {
       case (?user) {
-        user.shaerd_message_number += 1;
-        id := user.shaerd_message_number;
+        user.shared_message_number += 1;
+        id := user.shared_message_number;
         let message : Type.SharedMessage = {
           content = content;
           var is_private = is_private;
@@ -213,7 +213,7 @@ actor {
           var liked = 0;
           var comment = [];
         };
-        user.shared_message.put(user.shaerd_message_number, message);
+        user.shared_message.put(user.shared_message_number, message);
         user_pool.put(msg.caller, user);
       };
       case null return null;
@@ -345,6 +345,19 @@ actor {
     };
   };
 
+  public shared(msg) func get_shared_list():async ?[Nat]{
+    var shared_list :[Nat] = [];
+    switch (user_pool.get(msg.caller)) {
+      case (?user) { 
+        for(shared_message in user.shared_message.keys() ){
+          shared_list := Array.append<Nat>(shared_list,Array.make<Nat>(shared_message))
+        };
+       ?shared_list
+      };
+      case _ ?[];
+    };
+  };
+
   public shared (msg) func delete_shared_message(message_id : Nat) : async Bool {
     switch (user_pool.get(msg.caller)) {
       case (?user) {
@@ -358,7 +371,7 @@ actor {
   public shared (msg) func delete_all_shared_message() : async Bool {
     switch (user_pool.get(msg.caller)) {
       case (?user) {
-        user.shaerd_message_number := 0;
+        user.shared_message_number := 0;
         user.shared_message := HashMap.HashMap<Nat, Type.SharedMessage>(0, Nat.equal, Hash.hash);
         return true;
       };

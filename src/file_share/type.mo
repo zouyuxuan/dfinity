@@ -33,7 +33,7 @@ module {
         description : Text;
         like_list:[(Text,Nat)];
         liked_total:Nat32;
-        shaerd_message_number : Nat;
+        shared_message_number : Nat;
         follower : [Text];
         followering : [Text];
         shared_message : [Nat]
@@ -44,7 +44,7 @@ module {
         description : Text;
         var like_list:[(Text,Nat)];
         var liked_total:Nat32;
-        var shaerd_message_number : Nat;
+        var shared_message_number : Nat;
         var  follower : [Text];
         var followering : [Text];
         var shared_message : Map.HashMap<Nat,SharedMessage>;
