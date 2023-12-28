@@ -43,7 +43,6 @@ actor {
             var liked_total = 0;
             var like_list = [];
             var followering = [];
-            var collections = [];
             var shared_message = HashMap.HashMap<Nat, Type.SharedMessage>(0, Nat.equal, Hash.hash);
             var message = m;
           },
@@ -72,7 +71,6 @@ actor {
         shaerd_message_number = user.shared_message.size();
         follower = user.follower;
         followering = user.followering;
-        collections = user.collections;
         shared_message = share_messages;
         };
         ?user_info
@@ -176,17 +174,26 @@ actor {
 
   };
   public shared (msg) func delete_message_with_user(to : Text) : async Result.Result<(), Type.OptionError> {
-    switch (user_pool.get(msg.caller)) {
-      case (?u) {
-        switch (u.message.get((u.user_name, to))) {
-          case (?messages) {
-            u.message.delete((u.user_name, to));
-            user_pool.put(msg.caller, u);
+    var  p = "";
+    switch (users.get(to)) {
+      case (?recv) {
+          p := Principal.toText(recv);
+        };
+        case null { return #err(#NotExistsErr("to not exists ")); }; 
+      };
+    switch (user_pool.get(msg.caller),user_pool.get(Principal.fromText(p))) {
+      case (?f ,?t) {
+        switch (f.message.get((f.user_name, to)),t.message.get((to,f.user_name))) {
+          case (?f_messages,?t_message) {
+            f.message.delete((f.user_name, to));
+            t.message.delete((to,f.user_name));
+            user_pool.put(msg.caller, f);
+            user_pool.put(Principal.fromText(p), t);
           };
-          case null return #err(#NotExistsErr("to not exists "));
+          case (_,_) return #err(#NotExistsErr("to not exists "));
         };
       };
-      case null return #err(#NotExistsErr("sender not exists "));
+      case (_,_) return #err(#NotExistsErr("sender not exists "));
     };
     #ok;
   };
@@ -310,12 +317,6 @@ actor {
     };
 
     return true;
-  };
-  public shared(msg) func collect_shared_message(user_name:Text,message_id:Nat):async Bool{
-    true
-  };
-  public shared(msg) func cancel_collect_shared_message(user_name:Text,message_id:Nat):async Bool{
-    true
   };
   public shared(msg) func get_like_number():async Nat32{
     switch (user_pool.get(msg.caller)) {

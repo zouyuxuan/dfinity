@@ -34,6 +34,8 @@ dfx deploy
 dfx canister  call file_share  create_user '("zyx","")'
 # 发送消息
 dfx canister call file_share send_message '("tll",record{send_time = 123; content = "test send message"; sender = "zyx";id=1 })'
+# 查看会话列表
+dfx canister call file_share get_chat_list
 # 查看跟tll的消息记录
 dfx canister call file_share  get_messages '("tll")'
 # 删除跟tll的消息记录

@@ -36,7 +36,6 @@ module {
         shaerd_message_number : Nat;
         follower : [Text];
         followering : [Text];
-        collections : [(Text,Nat)];
         shared_message : [Nat]
     };
     public type User = {
@@ -48,7 +47,6 @@ module {
         var shaerd_message_number : Nat;
         var  follower : [Text];
         var followering : [Text];
-        var collections : [(Text,Nat)];
         var shared_message : Map.HashMap<Nat,SharedMessage>;
         var message:Map.HashMap<(Text,Text),[Message]>;
     };
