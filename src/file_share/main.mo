@@ -38,7 +38,7 @@ actor {
             user_name = user_name;
             description = description;
             create_time = Time.now();
-            var shaerd_message_number = 0;
+            var shared_message_number = 0;
             var follower = [];
             var liked_total = 0;
             var like_list = [];
@@ -68,7 +68,7 @@ actor {
         description = user.description;
         like_list = user.like_list;
         liked_total=user.liked_total;
-        shaerd_message_number = user.shared_message.size();
+        shared_message_number = user.shared_message.size();
         follower = user.follower;
         followering = user.followering;
         shared_message = share_messages;
