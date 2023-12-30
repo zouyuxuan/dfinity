@@ -13,6 +13,9 @@ import Nat "mo:base/Nat";
 import Blob "mo:base/Blob";
 import Nat32 "mo:base/Nat32";
 actor {
+  let chat_limit_number = 100;
+  let init_storage_total : Nat32 = 5;
+  let gold_storage_total : Nat32 = 10; // 10G
   var users = HashMap.HashMap<Text, Principal>(0, Text.equal, Text.hash);
   var user_pool = HashMap.HashMap<Principal, Type.User>(0, Principal.equal, Principal.hash);
   public shared (msg) func create_user(user_name : Text, description : Text) : async Bool {
@@ -38,6 +41,11 @@ actor {
             user_name = user_name;
             description = description;
             create_time = Time.now();
+            var storage_cast = 0;
+            var storage_total = init_storage_total;
+            var chat_limit_number = 0;
+            var level = #Silver;
+            var update_time = 0;
             var shared_message_number = 0;
             var follower = [];
             var liked_total = 0;
@@ -54,30 +62,30 @@ actor {
     true
 
   };
-  public shared(msg) func get_user_info():async ?Type.UserInfo{
+  public shared (msg) func get_user_info() : async ?Type.UserInfo {
     switch (user_pool.get(msg.caller)) {
       case (?user) {
-        var share_messages:[Nat] = [];
-        for(s in user.shared_message.keys()){
-         share_messages :=  Array.append(share_messages,Array.make<Nat>(s));
+        var share_messages : [Nat] = [];
+        for (s in user.shared_message.keys()) {
+          share_messages := Array.append(share_messages, Array.make<Nat>(s));
         };
         Debug.print("user name = " #user.user_name);
-        let user_info  : Type.UserInfo ={
-        create_time = user.create_time;
-        user_name = user.user_name;
-        description = user.description;
-        like_list = user.like_list;
-        liked_total=user.liked_total;
-        shared_message_number = user.shared_message.size();
-        follower = user.follower;
-        followering = user.followering;
-        shared_message = share_messages;
+        let user_info : Type.UserInfo = {
+          create_time = user.create_time;
+          user_name = user.user_name;
+          description = user.description;
+          like_list = user.like_list;
+          liked_total = user.liked_total;
+          shared_message_number = user.shared_message.size();
+          follower = user.follower;
+          followering = user.followering;
+          shared_message = share_messages;
         };
-        ?user_info
+        ?user_info;
       };
       case null {
         Debug.print("user not exist ");
-        null
+        null;
       };
     };
   };
@@ -120,48 +128,84 @@ actor {
     0;
   };
   public shared ({ caller }) func send_message(to : Text, message : Type.Message) : async Bool {
-   var  p = "";
+    var p = "";
     switch (users.get(to)) {
       case (?recv) {
-          p := Principal.toText(recv);
-        };
-        case null { Debug.print("user" # to # " not created "); return false }; 
+        p := Principal.toText(recv);
       };
-      
-    switch (user_pool.get(caller) ,user_pool.get(Principal.fromText(p))) {
+      case null { Debug.print("user" # to # " not created "); return false };
+    };
+    switch (user_pool.get(caller), user_pool.get(Principal.fromText(p))) {
 
-      case (?user,?receiver) {
-        switch (user.message.get((user.user_name, to)),receiver.message.get((to,user.user_name))) {
-          case (?messages_from,?message_to) {
-           receiver.message.put((to,user.user_name), Array.append<Type.Message>(message_to, Array.make<Type.Message>(message)));
+      case (?user, ?receiver) {
+        if (user.level == #Silver and user.chat_limit_number > chat_limit_number) {
+          return false;
+        };
+        switch (user.message.get((user.user_name, to)), receiver.message.get((to, user.user_name))) {
+          case (?messages_from, ?message_to) {
+            receiver.message.put((to, user.user_name), Array.append<Type.Message>(message_to, Array.make<Type.Message>(message)));
             user.message.put((user.user_name, to), Array.append<Type.Message>(messages_from, Array.make<Type.Message>(message)));
           };
-          case (null,null) {
-            receiver.message.put((to,user.user_name), Array.make<Type.Message>(message));
+          case (null, null) {
+            receiver.message.put((to, user.user_name), Array.make<Type.Message>(message));
             user.message.put((user.user_name, to), Array.make<Type.Message>(message));
           };
-          case (_,_){};
+          case (_, _) {};
         };
+        user.chat_limit_number += 1;
+        Debug.print("user name = " # user.user_name # "cast" # Nat.toText(chat_limit_number - user.chat_limit_number));
         user_pool.put(caller, user);
         true;
       };
-      case (null,null)  false;
-      case(_,_) false;
+      case (null, null) false;
+      case (_, _) false;
     };
   };
 
-  public shared(msg) func get_chat_list():async ?[Text]{
+  public shared (msg) func update_user_level(level : Nat) : async Bool {
     switch (user_pool.get(msg.caller)) {
-      case(?user){
-        var chat_list :[Text] = [];
-        for(chat in user.message.keys()){
-          chat_list := Array.append(chat_list,Array.make(chat.1))
+      case (?user) {
+        switch (level) {
+          case (1) {
+            user.level := #Gold;
+            user.storage_total := gold_storage_total;
+
+          };
+          case (2) {
+            user.level := #Diamond;
+            user.storage_total := 1000000;
+
+          };
+          // input illegal
+          case _ return false;
+        };
+        user.update_time := Time.now();
+
+      };
+      case null return false;
+    };
+    true;
+  };
+  public shared (msg) func get_user_level() : async ?Type.Update_Level {
+    switch (user_pool.get(msg.caller)) {
+      case (?user) {
+        ?user.level;
+      };
+      case null null;
+    };
+  };
+  public shared (msg) func get_chat_list() : async ?[Text] {
+    switch (user_pool.get(msg.caller)) {
+      case (?user) {
+        var chat_list : [Text] = [];
+        for (chat in user.message.keys()) {
+          chat_list := Array.append(chat_list, Array.make(chat.1));
         };
         return ?chat_list;
       };
-      case null return null
+      case null return null;
     };
-    null
+    null;
   };
   public shared (msg) func get_messages(to : Text) : async ?[Type.Message] {
     switch (user_pool.get(msg.caller)) {
@@ -174,34 +218,48 @@ actor {
 
   };
   public shared (msg) func delete_message_with_user(to : Text) : async Result.Result<(), Type.OptionError> {
-    var  p = "";
+    var p = "";
     switch (users.get(to)) {
       case (?recv) {
-          p := Principal.toText(recv);
-        };
-        case null { return #err(#NotExistsErr("to not exists ")); }; 
+        p := Principal.toText(recv);
       };
-    switch (user_pool.get(msg.caller),user_pool.get(Principal.fromText(p))) {
-      case (?f ,?t) {
-        switch (f.message.get((f.user_name, to)),t.message.get((to,f.user_name))) {
-          case (?f_messages,?t_message) {
+      case null { return #err(#NotExistsErr("to not exists ")) };
+    };
+    switch (user_pool.get(msg.caller), user_pool.get(Principal.fromText(p))) {
+      case (?f, ?t) {
+        switch (f.message.get((f.user_name, to)), t.message.get((to, f.user_name))) {
+          case (?f_messages, ?t_message) {
             f.message.delete((f.user_name, to));
-            t.message.delete((to,f.user_name));
+            t.message.delete((to, f.user_name));
             user_pool.put(msg.caller, f);
             user_pool.put(Principal.fromText(p), t);
           };
-          case (_,_) return #err(#NotExistsErr("to not exists "));
+          case (_, _) return #err(#NotExistsErr("to not exists "));
         };
       };
-      case (_,_) return #err(#NotExistsErr("sender not exists "));
+      case (_, _) return #err(#NotExistsErr("sender not exists "));
     };
     #ok;
   };
 
-  public shared (msg) func share_message(content : Text, video_cid : Text, image_cid : Text, is_private : Bool) : async ?Nat {
+  public shared (msg) func share_message(content : Text, video_cid : Text, image_cid : Text, storage_cast : Nat32, is_private : Bool) : async ?Nat {
     var id : Nat = 0;
     switch (user_pool.get(msg.caller)) {
       case (?user) {
+        switch (user.level) {
+          case (#Silver) {
+            if (user.storage_cast + storage_cast > init_storage_total) {
+              return null;
+            };
+          };
+          case (#Gold) {
+            if (user.storage_cast + storage_cast > gold_storage_total) {
+              return null;
+            };
+          };
+          case _ {};
+        };
+        user.storage_cast += storage_cast;
         user.shared_message_number += 1;
         id := user.shared_message_number;
         let message : Type.SharedMessage = {
@@ -270,6 +328,14 @@ actor {
 
   };
 
+  public shared (msg) func get_storage_cast() : async Nat32 {
+    switch (user_pool.get(msg.caller)) {
+      case (?user) {
+        user.storage_cast;
+      };
+      case null 0;
+    };
+  };
   public shared (msg) func like_shared_message(user_name : Text, message_id : Nat) : async Bool {
     let user_principal = await get_user_principal(user_name);
     switch (user_principal) {
@@ -318,23 +384,23 @@ actor {
 
     return true;
   };
-  public shared(msg) func get_like_number():async Nat32{
+  public shared (msg) func get_like_number() : async Nat32 {
     switch (user_pool.get(msg.caller)) {
       case (?user) {
-        return user.liked_total
+        return user.liked_total;
       };
       case null return 0;
     };
-     return 0
+    return 0;
   };
   public shared (msg) func get_like_list() : async ?[(Text, Nat)] {
     switch (user_pool.get(msg.caller)) {
       case (?user) {
-        return ?user.like_list
+        return ?user.like_list;
       };
       case null return null;
     };
-     return null;
+    return null;
   };
   public shared (msg) func get_shared_message_number() : async Nat {
     switch (user_pool.get(msg.caller)) {
@@ -345,14 +411,14 @@ actor {
     };
   };
 
-  public shared(msg) func get_shared_list():async ?[Nat]{
-    var shared_list :[Nat] = [];
+  public shared (msg) func get_shared_list() : async ?[Nat] {
+    var shared_list : [Nat] = [];
     switch (user_pool.get(msg.caller)) {
-      case (?user) { 
-        for(shared_message in user.shared_message.keys() ){
-          shared_list := Array.append<Nat>(shared_list,Array.make<Nat>(shared_message))
+      case (?user) {
+        for (shared_message in user.shared_message.keys()) {
+          shared_list := Array.append<Nat>(shared_list, Array.make<Nat>(shared_message));
         };
-       ?shared_list
+        ?shared_list;
       };
       case _ ?[];
     };

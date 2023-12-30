@@ -38,14 +38,24 @@ module {
         followering : [Text];
         shared_message : [Nat]
     };
+    public type Update_Level = {
+        #Silver;
+        #Gold;
+        #Diamond
+    };
     public type User = {
         create_time : Int;
         user_name : Text;
         description : Text;
+        var chat_limit_number:Nat;
+        var storage_cast: Nat32;
+        var storage_total:Nat32;
+        var level:Update_Level;
+        var update_time : Int;
         var like_list:[(Text,Nat)];
         var liked_total:Nat32;
         var shared_message_number : Nat;
-        var  follower : [Text];
+        var follower : [Text];
         var followering : [Text];
         var shared_message : Map.HashMap<Nat,SharedMessage>;
         var message:Map.HashMap<(Text,Text),[Message]>;
