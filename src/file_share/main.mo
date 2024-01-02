@@ -12,7 +12,9 @@ import Int32 "mo:base/Int32";
 import Nat "mo:base/Nat";
 import Blob "mo:base/Blob";
 import Nat32 "mo:base/Nat32";
-actor {
+import Timer "mo:base/Timer"
+
+actor class FileShare(interval :Nat) {
   let chat_limit_number = 100;
   let init_storage_total : Nat32 = 5;
   let gold_storage_total : Nat32 = 10; // 10G
@@ -497,4 +499,21 @@ actor {
       case null null;
     };
   };
+
+  private func update_chat_number():async(){
+    for (user in user_pool.vals()){
+      user.chat_limit_number := 0;
+    };
+    
+
+  };
+
+
+  ignore Timer.setTimer(#seconds (0),
+    func () : async () {
+      ignore Timer.recurringTimer(#seconds (interval),func():async(){
+      await update_chat_number();
+    });
+  });
+   
 };
