@@ -5,6 +5,7 @@ import Array "mo:base/Array";
 import Bool "mo:base/Bool";
 import Nat32 "mo:base/Nat32";
 import Nat "mo:base/Nat";
+import Buffer "mo:base/Buffer";
 
 module {
    
@@ -21,13 +22,17 @@ module {
         video_cid :Text;
         image_cid :Text;
         var liked:Int32;
-        var comment: [Message];
+        var comment: Buffer.Buffer<Message>;
     };
     public type OptionError ={
         #PrivateErr:Text;
         #NotExistsErr:Text;
     };
     public type UserInfo = {
+        chat_limit_number:Int32;
+        storage_cast:Int32;
+        storage_last:Int32;
+        storage_total:Int32;
         create_time : Int;
         user_name : Text;
         description : Text;
@@ -52,13 +57,13 @@ module {
         var storage_total:Int32;
         var level:Update_Level;
         var update_time : Int;
-        var like_list:[(Text,Nat)];
+        var like_list:Buffer.Buffer<(Text,Nat)>;
         var liked_total:Nat32;
         var shared_message_number : Nat;
-        var follower : [Text];
+        var follower : Buffer.Buffer<Text>;
         var followering : [Text];
         var shared_message : Map.HashMap<Nat,SharedMessage>;
-        var message:Map.HashMap<(Text,Text),[Message]>;
+        var message:Map.HashMap<(Text,Text),Buffer.Buffer<Message>>;
     };
     public type Replay = {
         shared_message_id :Nat;

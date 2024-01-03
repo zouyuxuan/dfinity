@@ -12,6 +12,7 @@
 ### motoko合约开发  
 - 定义项目框架，添加用户数据  
 - 实现用户状态发布，分享，私信，点赞，评论等业务功能开发  
+- 设计用户存储账户，设计用户账户升级计划
 - 实现icp 代币发送接收功能  
 ### 前端开发
 -  搭建前端框架，添加ipfs接口，实现数据在ipfs上进行存取   
@@ -41,7 +42,7 @@ dfx canister call file_share  get_messages '("tll")'
 # 删除跟tll的消息记录
 dfx canister call file_share  delete_message_with_user  '("tll")'
 # 发布分享
-dfx canister call file_share share_message '("share message","www.baidu.com","",false)'
+dfx canister call file_share share_message '("share message","video_cid","image_cid","",false)'
 # 获取分享
 dfx canister call file_share get_shared_message_by_id '("zyx",1)'
 # 设置分享状态私密
@@ -60,5 +61,9 @@ dfx canister call file_share get_comment '(1)'
 dfx canister call file_share delete_shared_message '(1)'
 # 删除所有分享
 dfx canister call file_share delete_all_shared_message 
+# 用户账户升级
+dfx canister call file_share update_user_level '(1)'
+# 获取用户等级
+dfx canister call file_share get_user_level
 
 ```

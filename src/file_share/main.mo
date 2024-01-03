@@ -12,10 +12,11 @@ import Int32 "mo:base/Int32";
 import Nat "mo:base/Nat";
 import Blob "mo:base/Blob";
 import Nat32 "mo:base/Nat32";
-import Timer "mo:base/Timer"
+import Timer "mo:base/Timer";
+import Buffer "mo:base/Buffer";
 
 actor class FileShare(timer_interval : Nat) {
-  let chat_limit_number:Int32 = 3;
+  let chat_limit_number : Int32 = 3;
   let init_storage_total : Int32 = 5;
   let gold_storage_total : Int32 = 10; // 10G
   var users = HashMap.HashMap<Text, Principal>(0, Text.equal, Text.hash);
@@ -27,7 +28,7 @@ actor class FileShare(timer_interval : Nat) {
         return false;
       };
       case (null) {
-        let m = HashMap.HashMap<(Text, Text), [Type.Message]>(
+        let m = HashMap.HashMap<(Text, Text), Buffer.Buffer<Type.Message>>(
           0,
           func(to : (Text, Text), from : (Text, Text)) {
             Text.equal(to.0, from.0) and Text.equal(to.1, from.1)
@@ -49,9 +50,9 @@ actor class FileShare(timer_interval : Nat) {
             var level = #Silver;
             var update_time = 0;
             var shared_message_number = 0;
-            var follower = [];
+            var follower = Buffer.Buffer<Text>(0);
             var liked_total = 0;
-            var like_list = [];
+            var like_list = Buffer.Buffer<(Text, Nat)>(0);
             var followering = [];
             var shared_message = HashMap.HashMap<Nat, Type.SharedMessage>(0, Nat.equal, Hash.hash);
             var message = m;
@@ -67,21 +68,25 @@ actor class FileShare(timer_interval : Nat) {
   public shared (msg) func get_user_info() : async ?Type.UserInfo {
     switch (user_pool.get(msg.caller)) {
       case (?user) {
-        var share_messages : [Nat] = [];
+        var share_messages : Buffer.Buffer<Nat> = Buffer.Buffer<Nat>(user.shared_message.size());
         for (s in user.shared_message.keys()) {
-          share_messages := Array.append(share_messages, Array.make<Nat>(s));
+          share_messages.add(s);
         };
         Debug.print("user name = " #user.user_name);
         let user_info : Type.UserInfo = {
+          chat_limit_number = user.chat_limit_number;
+          storage_cast = user.storage_cast;
+          storage_last = user.storage_total - user.storage_cast;
+          storage_total = user.storage_total;
           create_time = user.create_time;
           user_name = user.user_name;
           description = user.description;
-          like_list = user.like_list;
+          like_list = Buffer.toArray(user.like_list);
           liked_total = user.liked_total;
           shared_message_number = user.shared_message.size();
-          follower = user.follower;
+          follower = Buffer.toArray(user.follower);
           followering = user.followering;
-          shared_message = share_messages;
+          shared_message = Buffer.toArray(share_messages);
         };
         ?user_info;
       };
@@ -108,7 +113,7 @@ actor class FileShare(timer_interval : Nat) {
           Debug.print("Can't follow yourself");
           return false;
         };
-        user.follower := Array.append<Text>(user.follower, Array.make<Text>(user_name));
+        user.follower.add(user_name);
         user_pool.put(
           msg.caller,
           user,
@@ -121,7 +126,7 @@ actor class FileShare(timer_interval : Nat) {
   public shared (msg) func get_follow_user(user_name : Text) : async ?[Text] {
     switch (user_pool.get(msg.caller)) {
       case (?user) {
-        ?user.follower;
+        ?Buffer.toArray(user.follower);
       };
       case _ null;
     };
@@ -145,12 +150,16 @@ actor class FileShare(timer_interval : Nat) {
         };
         switch (user.message.get((user.user_name, to)), receiver.message.get((to, user.user_name))) {
           case (?messages_from, ?message_to) {
-            receiver.message.put((to, user.user_name), Array.append<Type.Message>(message_to, Array.make<Type.Message>(message)));
-            user.message.put((user.user_name, to), Array.append<Type.Message>(messages_from, Array.make<Type.Message>(message)));
+            message_to.add(message);
+            messages_from.add(message);
+            receiver.message.put((to, user.user_name), message_to);
+            user.message.put((user.user_name, to), messages_from);
           };
           case (null, null) {
-            receiver.message.put((to, user.user_name), Array.make<Type.Message>(message));
-            user.message.put((user.user_name, to), Array.make<Type.Message>(message));
+            var m = Buffer.Buffer<Type.Message>(0);
+            m.add(message);
+            receiver.message.put((to, user.user_name), m);
+            user.message.put((user.user_name, to), m);
           };
           case (_, _) {};
         };
@@ -199,11 +208,11 @@ actor class FileShare(timer_interval : Nat) {
   public shared (msg) func get_chat_list() : async ?[Text] {
     switch (user_pool.get(msg.caller)) {
       case (?user) {
-        var chat_list : [Text] = [];
+        var chat_list = Buffer.Buffer<Text>(user.message.size());
         for (chat in user.message.keys()) {
-          chat_list := Array.append(chat_list, Array.make(chat.1));
+          chat_list.add(chat.1);
         };
-        return ?chat_list;
+        return ?Buffer.toArray(chat_list);
       };
       case null return null;
     };
@@ -213,7 +222,13 @@ actor class FileShare(timer_interval : Nat) {
     switch (user_pool.get(msg.caller)) {
       case (?user) {
         Debug.print("get message from to =  " #to);
-        user.message.get((user.user_name, to));
+        switch (user.message.get((user.user_name, to))) {
+          case (?m) {
+            ?Buffer.toArray(m);
+          };
+          case null null;
+        };
+
       };
       case null null;
     };
@@ -271,7 +286,7 @@ actor class FileShare(timer_interval : Nat) {
           image_cid = image_cid;
           shared_time = Time.now();
           var liked = 0;
-          var comment = [];
+          var comment = Buffer.Buffer(0);
         };
         user.shared_message.put(user.shared_message_number, message);
         user_pool.put(msg.caller, user);
@@ -351,14 +366,14 @@ actor class FileShare(timer_interval : Nat) {
                 switch (user_pool.get(msg.caller)) {
                   case (?caller) {
                     // 是否已喜欢
-                    let index = Array.indexOf<(Text, Nat)>((user_name, message_id), caller.like_list, func(to : ((Text, Nat), (Text, Nat))) { return to.0.0 == to.1.0 and to.0.1 == to.1.1 });
+                    let index = Buffer.indexOf<(Text, Nat)>((user_name, message_id), caller.like_list, func(to : ((Text, Nat), (Text, Nat))) { return to.0.0 == to.1.0 and to.0.1 == to.1.1 });
                     switch (index) {
                       case (?exists) {
                         Debug.print("caller has liked this message ");
                         return false;
                       };
                       case null {
-                        caller.like_list := Array.append(caller.like_list, Array.make((user_name, message_id)));
+                        caller.like_list.add((user_name, message_id));
                         user_pool.put(msg.caller, caller);
                       };
 
@@ -398,7 +413,7 @@ actor class FileShare(timer_interval : Nat) {
   public shared (msg) func get_like_list() : async ?[(Text, Nat)] {
     switch (user_pool.get(msg.caller)) {
       case (?user) {
-        return ?user.like_list;
+        return ?Buffer.toArray(user.like_list);
       };
       case null return null;
     };
@@ -421,14 +436,35 @@ actor class FileShare(timer_interval : Nat) {
       case _ 0;
     };
   };
+  public func get_shared_message_by_name(user_name : Text) : async ?[Nat] {
+    let user_principal = await get_user_principal(user_name);
+    switch (user_principal) {
+      case (?user) {
+        switch (user_pool.get(user)) {
+          case (?u) {
+            let id_list = Buffer.Buffer<Nat>(u.shared_message.size());
+            for (id in u.shared_message.keys()) {
+              id_list.add(id)
+
+            };
+            return ?Buffer.toArray(id_list);
+          };
+          case null return null;
+        };
+      };
+      case null return null;
+    };
+
+    return null;
+  };
   public shared (msg) func get_shared_list() : async ?[Nat] {
-    var shared_list : [Nat] = [];
     switch (user_pool.get(msg.caller)) {
       case (?user) {
+        var shared_list = Buffer.Buffer<Nat>(user.shared_message.size());
         for (shared_message in user.shared_message.keys()) {
-          shared_list := Array.append<Nat>(shared_list, Array.make<Nat>(shared_message));
+          shared_list.add(shared_message);
         };
-        ?shared_list;
+        ?Buffer.toArray(shared_list);
       };
       case _ ?[];
     };
@@ -466,7 +502,7 @@ actor class FileShare(timer_interval : Nat) {
                 if (c.is_private and m != msg.caller) {
                   return #err(#PrivateErr("message is private "));
                 } else {
-                  c.comment := Array.append(c.comment, Array.make(content));
+                  c.comment.add(content);
                   user.shared_message.put(message_id, c);
                   var replay : Type.Replay = {
                     shared_message_id = message_id;
@@ -493,7 +529,7 @@ actor class FileShare(timer_interval : Nat) {
       case (?user) {
         switch (user.shared_message.get(message_id)) {
           case (?message) {
-            ?message.comment;
+            ?Buffer.toArray(message.comment);
           };
           case null null;
         };
@@ -510,7 +546,7 @@ actor class FileShare(timer_interval : Nat) {
   };
 
   private func update_chat_number() : async () {
-    Debug.print("update users chat number by timer ,timer interval = "# Nat.toText(timer_interval));
+    Debug.print("update users chat number by timer ,timer interval = " # Nat.toText(timer_interval));
     for (user in user_pool.vals()) {
       user.chat_limit_number := 0;
     };
