@@ -47,9 +47,9 @@ module {
         create_time : Int;
         user_name : Text;
         description : Text;
-        var chat_limit_number:Nat;
-        var storage_cast: Nat32;
-        var storage_total:Nat32;
+        var chat_limit_number:Int32;
+        var storage_cast: Int32;
+        var storage_total:Int32;
         var level:Update_Level;
         var update_time : Int;
         var like_list:[(Text,Nat)];

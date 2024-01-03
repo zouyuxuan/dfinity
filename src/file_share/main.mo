@@ -14,10 +14,10 @@ import Blob "mo:base/Blob";
 import Nat32 "mo:base/Nat32";
 import Timer "mo:base/Timer"
 
-actor class FileShare(interval :Nat) {
-  let chat_limit_number = 100;
-  let init_storage_total : Nat32 = 5;
-  let gold_storage_total : Nat32 = 10; // 10G
+actor class FileShare(timer_interval : Nat) {
+  let chat_limit_number:Int32 = 3;
+  let init_storage_total : Int32 = 5;
+  let gold_storage_total : Int32 = 10; // 10G
   var users = HashMap.HashMap<Text, Principal>(0, Text.equal, Text.hash);
   var user_pool = HashMap.HashMap<Principal, Type.User>(0, Principal.equal, Principal.hash);
   public shared (msg) func create_user(user_name : Text, description : Text) : async Bool {
@@ -140,7 +140,7 @@ actor class FileShare(interval :Nat) {
     switch (user_pool.get(caller), user_pool.get(Principal.fromText(p))) {
 
       case (?user, ?receiver) {
-        if (user.level == #Silver and user.chat_limit_number > chat_limit_number) {
+        if (user.level == #Silver and user.chat_limit_number >= chat_limit_number) {
           return false;
         };
         switch (user.message.get((user.user_name, to)), receiver.message.get((to, user.user_name))) {
@@ -155,7 +155,7 @@ actor class FileShare(interval :Nat) {
           case (_, _) {};
         };
         user.chat_limit_number += 1;
-        Debug.print("user name = " # user.user_name # "cast" # Nat.toText(chat_limit_number - user.chat_limit_number));
+        Debug.print("user name = " # user.user_name # "cast" # Int32.toText(chat_limit_number - user.chat_limit_number));
         user_pool.put(caller, user);
         true;
       };
@@ -244,7 +244,7 @@ actor class FileShare(interval :Nat) {
     #ok;
   };
 
-  public shared (msg) func share_message(content : Text, video_cid : Text, image_cid : Text, storage_cast : Nat32, is_private : Bool) : async ?Nat {
+  public shared (msg) func share_message(content : Text, video_cid : Text, image_cid : Text, storage_cast : Int32, is_private : Bool) : async ?Nat {
     var id : Nat = 0;
     switch (user_pool.get(msg.caller)) {
       case (?user) {
@@ -330,7 +330,7 @@ actor class FileShare(interval :Nat) {
 
   };
 
-  public shared (msg) func get_storage_cast() : async Nat32 {
+  public shared (msg) func get_storage_cast() : async Int32 {
     switch (user_pool.get(msg.caller)) {
       case (?user) {
         user.storage_cast;
@@ -413,6 +413,14 @@ actor class FileShare(interval :Nat) {
     };
   };
 
+  public shared (msg) func get_chat_last_number() : async Int32 {
+    switch (user_pool.get(msg.caller)) {
+      case (?user) {
+        chat_limit_number - user.chat_limit_number;
+      };
+      case _ 0;
+    };
+  };
   public shared (msg) func get_shared_list() : async ?[Nat] {
     var shared_list : [Nat] = [];
     switch (user_pool.get(msg.caller)) {
@@ -493,6 +501,7 @@ actor class FileShare(interval :Nat) {
       case null null;
     };
   };
+
   private func get_user_principal(user_name : Text) : async ?Principal {
     switch (users.get(user_name)) {
       case (?user) ?user;
@@ -500,20 +509,24 @@ actor class FileShare(interval :Nat) {
     };
   };
 
-  private func update_chat_number():async(){
-    for (user in user_pool.vals()){
+  private func update_chat_number() : async () {
+    Debug.print("update users chat number by timer ,timer interval = "# Nat.toText(timer_interval));
+    for (user in user_pool.vals()) {
       user.chat_limit_number := 0;
     };
-    
 
   };
 
+  ignore Timer.setTimer(
+    #seconds(0),
+    func() : async () {
+      ignore Timer.recurringTimer(
+        #seconds(timer_interval),
+        func() : async () {
+          await update_chat_number();
+        },
+      );
+    },
+  );
 
-  ignore Timer.setTimer(#seconds (0),
-    func () : async () {
-      ignore Timer.recurringTimer(#seconds (interval),func():async(){
-      await update_chat_number();
-    });
-  });
-   
 };
